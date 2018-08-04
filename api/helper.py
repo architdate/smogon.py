@@ -2,6 +2,7 @@ import requests
 import json
 import subprocess
 import sys
+import string
 from api.exceptions import *
 
 def copy(s):
@@ -129,6 +130,12 @@ def getEVIVString(evdict, iv):
     if iv: startText = "IVs: "
     return startText + str(evs[0]) + " HP / " + str(evs[1]) + " Atk / " + str(evs[2]) + " Def / " + str(evs[3]) + " SpA / " + str(evs[4]) + " SpD / " + str(evs[5]) + " Spe"
 
+def processSpecies(species):
+    speciesList = species.split('-')
+    for i in range(0, len(speciesList)):
+        speciesList[i] = string.capwords(speciesList[i])
+    return '-'.join(speciesList)
+
 def extractData(pokemon, generation = 7):
     generation_codes = {'1': 'rb', '2': 'gs', '3': 'rs', '4': 'dp', '5': 'bw', '6': 'xy', '7': 'sm'}
     try:
@@ -162,5 +169,31 @@ def extractData(pokemon, generation = 7):
             else: set_items = []
             if formIndex == 0: showdown_set = createShowdownSet(j, species)
             else: showdown_set = createShowdownSet(j, species + "-" + form)
+            returnjson['sets'].append({'format': meta, 'name': set_name, 'description': set_description, 'abilities': set_abilities, 'moves': set_moves, 'natures': set_natures, 'evs': set_evs, 'ivs': set_ivs, 'showdown': showdown_set})
+    return returnjson
+
+def extractDataFromString(species, generation = 7):
+    species = processSpecies(species)
+    generation_codes = {'1': 'rb', '2': 'gs', '3': 'rs', '4': 'dp', '5': 'bw', '6': 'xy', '7': 'sm'}
+    returnjson = {}
+    returnjson['url'] = "https://www.smogon.com/dex/{}/pokemon/{}/".format(generation_codes[str(generation)], species)
+    returnjson['sets'] = [] # to include a json of format, title, description and showdownset
+    r = requests.get(returnjson['url']).text
+    jsonstring = r.split("<script")[1].split("</script>")[0].split("dexSettings = ")[1].strip()
+    jsondata = json.loads(jsonstring)
+    strategylist = jsondata['injectRpcs'][2][1]['strategies']
+    for i in strategylist:
+        meta = i['format']
+        for j in i['movesets']:
+            set_description = j['description']
+            set_name = j['name']
+            set_abilities = j['abilities']
+            set_moves = j['moveslots']
+            set_natures = j['natures']
+            set_evs = j['evconfigs']
+            set_ivs = j['ivconfigs']
+            if 'items' in j.keys(): set_items = j['items']
+            else: set_items = []
+            showdown_set = createShowdownSet(j, species)
             returnjson['sets'].append({'format': meta, 'name': set_name, 'description': set_description, 'abilities': set_abilities, 'moves': set_moves, 'natures': set_natures, 'evs': set_evs, 'ivs': set_ivs, 'showdown': showdown_set})
     return returnjson
