@@ -4,7 +4,7 @@ from api.exceptions import *
 
 smogonapi = Blueprint('smogonapi', __name__)
 
-@smogonapi.route('/data/<generation>/<pokemon>')
+@smogonapi.route('/set/<generation>/<pokemon>')
 def getDataNoForm(generation, pokemon):
     try:
         if pokemon.isdigit(): dictval = extractData(int(pokemon), int(generation))
@@ -13,7 +13,7 @@ def getDataNoForm(generation, pokemon):
     except:
         APIError("Report to @thecommondude")
 
-@smogonapi.route('/data/<generation>/<pokemon>/<form>')
+@smogonapi.route('/set/<generation>/<pokemon>/<form>')
 def getDataForm(generation, pokemon, form):
     try:
         formattedpkm = (int(form) + int(pokemon) * 10) /10
