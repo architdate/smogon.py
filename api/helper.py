@@ -92,28 +92,29 @@ def getFormsUnown(generation):
     else: return letterlist + extras
 
 def createShowdownSet(data, species):
-    j = data
-    ability = j['abilities'][0]
-    if 'items' in j.keys(): item = j['items'][0]
-    else: item = None
-    movelist = j['moveslots']
-    filtermoves = []
-    for i in movelist:
-        filtermoves.append(i[0])
-    nature = j['natures'][0]
-    evdict = j['evconfigs'][0]
-    if len(j['ivconfigs']) > 0: ivdict = j['ivconfigs'][0]
-    else: ivdict = []
     result = ""
-    if item != None:
-        result += (species + " @ " + item + "\n")
-    else: result += species + "\n"
-    result += "Ability: " + ability + "\n"
-    result += getEVIVString(evdict, False) + "\n"
-    result += getEVIVString(ivdict, True) + "\n"
-    result += nature + " Nature\n"
-    for i in filtermoves:
-        result += "- " + i + "\n"
+    species_proper = species.replace("_"," ").title()
+
+    if 'items' in data.keys() and len(data['items']) > 0:
+        result += (species_proper + " @ " + data['items'][0] + "\n")
+    else:
+        result += species_proper + "\n"
+
+    if 'abilities' in data.keys() and len(data['abilities']) > 0:
+        result += "Ability: " + data['abilities'][0] + "\n"
+
+    if 'evconfigs' in data.keys() and len(data['evconfigs']) > 0:
+        result += getEVIVString(data['evconfigs'][0], False) + "\n"
+
+    if 'ivconfigs' in data.keys() and len(data['ivconfigs']) > 0:
+        result += getEVIVString(data['ivconfigs'][0], True) + "\n"
+
+    if 'natures' in data.keys() and len(data['natures']) > 0:
+        result += data['natures'][0] + " Nature\n"
+
+    for move in data['moveslots']:
+        result += "- " + move[0] + "\n"
+
     return result.strip()
 
 def getEVIVString(evdict, iv):
@@ -168,8 +169,11 @@ def extractData(pokemon, generation = 7):
             set_ivs = j['ivconfigs']
             if 'items' in j.keys(): set_items = j['items']
             else: set_items = []
-            if formIndex == 0: showdown_set = createShowdownSet(j, species)
-            else: showdown_set = createShowdownSet(j, species + "-" + form)
+            try:
+                if formIndex == 0: showdown_set = createShowdownSet(j, species)
+                else: showdown_set = createShowdownSet(j, species + "-" + form)
+            except:
+                showdown_set = None
             returnjson['sets'].append({'format': meta, 'name': set_name, 'items': set_items, 'description': set_description, 'abilities': set_abilities, 'moves': set_moves, 'natures': set_natures, 'evs': set_evs, 'ivs': set_ivs, 'showdown': showdown_set})
     return returnjson
 
@@ -179,10 +183,15 @@ def extractDataFromString(species, generation = 7):
     returnjson = {}
     returnjson['url'] = "https://www.smogon.com/dex/{}/pokemon/{}/".format(generation_codes[str(generation)], species)
     returnjson['sets'] = [] # to include a json of format, title, description and showdownset
-    r = requests.get(returnjson['url']).text
-    jsonstring = r.split("<script")[1].split("</script>")[0].split("dexSettings = ")[1].strip()
-    jsondata = json.loads(jsonstring)
-    strategylist = jsondata['injectRpcs'][2][1]['strategies']
+
+    try:
+        req = requests.get(returnjson['url']).text
+        jsonstring = req.split("<script")[1].split("</script>")[0].split("dexSettings = ")[1].strip()
+        jsondata = json.loads(jsonstring)
+        strategylist = jsondata['injectRpcs'][2][1]['strategies']
+    except:
+        return returnjson
+
     for i in strategylist:
         meta = i['format']
         for j in i['movesets']:
@@ -196,6 +205,9 @@ def extractDataFromString(species, generation = 7):
             set_ivs = j['ivconfigs']
             if 'items' in j.keys(): set_items = j['items']
             else: set_items = []
-            showdown_set = createShowdownSet(j, species)
+            try:
+                showdown_set = createShowdownSet(j, species)
+            except:
+                showdown_set = None
             returnjson['sets'].append({'format': meta, 'name': set_name, 'items': set_items, 'description': set_description, 'abilities': set_abilities, 'moves': set_moves, 'natures': set_natures, 'evs': set_evs, 'ivs': set_ivs, 'showdown': showdown_set})
     return returnjson
